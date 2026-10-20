@@ -3,204 +3,268 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f2e9">
+  <meta name="description" content="Schedule an automated voice call by writing it the way you would text it.">
   <title>CallAI</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e2b22'/%3E%3Cpath d='M9 13v6M13.5 9v14M18.5 11v10M23 14v4' stroke='%23f5f2e9' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!-- Fonts from Google Fonts: Newsreader for headings, DM Sans for the rest -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <section class="phone-frame">
-      <button class="corner-button" id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-panel">+</button>
 
-      <form id="schedule-form">
-        <section class="settings-panel hidden" id="settings-panel" aria-label="Testing setup">
-          <div class="settings-panel-head">
-            <div>
-              <p class="section-label">Testing setup</p>
-              <p class="settings-copy">Use this only for the web demo. The Android app can replace it with real profile and contacts later.</p>
-            </div>
-            <span class="health-pill" id="health-pill">Checking backend</span>
-          </div>
+  <!-- Top bar: the logo and three tabs. Each tab shows one of the three sections below. -->
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0e2b22"/><path d="M9 13v6M13.5 9v14M18.5 11v10M23 14v4" stroke="#f5f2e9" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <span class="brand-name">CallAI</span>
+      </a>
 
-          <div class="identity-row">
-            <label>
-              <span>User ID</span>
-              <input type="text" name="user_id" value="user_001" required>
-            </label>
-            <label>
-              <span>Your name</span>
-              <input type="text" name="user_name" value="Ayush" required>
-            </label>
-          </div>
-
-          <div class="contacts-panel">
-            <div class="contacts-panel-head">
-              <div>
-                <p class="section-label">Contacts</p>
-                <p class="settings-copy">These are the contacts the agent can match from your prompt.</p>
-              </div>
-              <button class="pill-button" id="add-contact-button" type="button">Add</button>
-            </div>
-            <div id="contacts-list" class="contacts-list"></div>
-          </div>
-        </section>
-
-        <section class="view-panel view-panel-active home-view" id="home-view" aria-labelledby="home-tab">
-          <div class="hero-card">
-            <p class="greeting-line" id="greeting-line">Good afternoon,</p>
-            <h1 class="greeting-name" id="greeting-name">Ayush</h1>
-            <p class="hero-subtitle">What would you like me to call?</p>
-          </div>
-
-          <section class="processing-card hidden" id="processing-card" aria-live="polite">
-            <div class="processing-waves">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <p class="processing-title">Thinking through your call</p>
-            <p class="processing-copy">Matching the contact, finding the right time, and preparing the spoken message.</p>
-          </section>
-
-          <section class="missing-card hidden" id="missing-section" aria-live="polite">
-            <p class="section-label">One more thing</p>
-            <h2>Fill only what is missing.</h2>
-            <div id="missing-fields" class="missing-fields"></div>
-            <button class="primary-button inline-action" id="continue-button" type="submit">Continue</button>
-          </section>
-
-          <section class="confirm-card hidden" id="confirmation-card" aria-live="polite">
-            <div class="confirm-header">
-              <div>
-                <p class="section-label">Here's what I understood</p>
-                <h2>Confirm this call</h2>
-              </div>
-            </div>
-
-            <dl class="confirm-grid">
-              <div>
-                <dt>Call</dt>
-                <dd id="confirm-contact"></dd>
-              </div>
-              <div>
-                <dt>When</dt>
-                <dd id="confirm-time"></dd>
-              </div>
-              <div class="confirm-message-row">
-                <dt>Say</dt>
-                <dd id="confirm-message"></dd>
-              </div>
-            </dl>
-
-            <div class="confirm-actions">
-              <button class="secondary-button" id="edit-button" type="button">Edit details</button>
-              <button class="primary-button" id="confirm-button" type="button">Schedule call</button>
-            </div>
-          </section>
-
-          <div class="composer-card">
-            <label class="composer-field" for="prompt-input">
-              <span class="sr-only">Prompt</span>
-              <textarea id="prompt-input" name="raw_prompt" rows="3" placeholder="Tell me who to call and what to say..." required></textarea>
-            </label>
-            <div class="composer-tools">
-              <button class="tool-button" type="button" aria-label="Voice mode placeholder">
-                <span class="sr-only">Voice mode placeholder</span>
-              </button>
-              <button class="send-button" id="analyze-button" type="submit" aria-label="Send prompt">
-                <span class="sr-only">Send prompt</span>
-              </button>
-            </div>
-          </div>
-
-          <p class="helper-quote">Try: "Call John tomorrow at 4 PM and tell him he sucks."</p>
-
-          <div class="quick-actions" aria-label="Quick actions">
-            <button class="quick-pill suggestion-chip" type="button" data-prompt="Call Ayush and tell him he owes me 50 rupees tomorrow at 3pm">Call someone</button>
-            <button class="quick-pill suggestion-chip" type="button" data-prompt="Call Rahul after 2 hours and ask him about the project update">Schedule a call</button>
-            <button class="quick-pill suggestion-chip" type="button" data-prompt="Call 8879279251 tomorrow at 9am and tell him the meeting is confirmed">Follow up with...</button>
-          </div>
-
-          <details class="debug-panel" id="debug-panel">
-            <summary>Agent response</summary>
-            <pre id="feedback-output"></pre>
-          </details>
-        </section>
-
-        <section class="view-panel scheduled-view" id="scheduled-view" aria-labelledby="scheduled-tab">
-          <div class="scheduled-header">
-            <div>
-              <p class="section-label">CallAI</p>
-              <h2>Scheduled</h2>
-              <p class="scheduled-copy">Your upcoming automated conversations.</p>
-            </div>
-            <button class="pill-button" id="refresh-button" type="button">Refresh</button>
-          </div>
-
-          <label class="filter-field">
-            <span>User ID</span>
-            <input id="user-filter" type="text" value="user_001">
-          </label>
-
-          <section class="call-group">
-            <div class="call-group-heading">
-              <h3>Upcoming</h3>
-              <span class="count-badge" id="upcoming-count">0</span>
-            </div>
-            <div id="upcoming-list" class="call-list empty-state">No upcoming calls yet.</div>
-          </section>
-
-          <section class="call-group">
-            <div class="call-group-heading">
-              <h3>History</h3>
-              <span class="count-badge muted-count" id="past-count">0</span>
-            </div>
-            <div id="past-list" class="call-list empty-state">No past calls yet.</div>
-          </section>
-        </section>
-      </form>
-
-      <nav class="bottom-nav" aria-label="Bottom navigation">
-        <button class="nav-item active" id="home-tab" type="button" data-view="home">
-          <span class="nav-icon home-icon"></span>
+      <nav class="primary-nav" aria-label="Primary">
+        <button class="nav-item active" type="button" data-view="home" aria-current="page">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></svg>
           <span>Home</span>
         </button>
-        <button class="nav-item" id="scheduled-tab" type="button" data-view="scheduled">
-          <span class="nav-icon calendar-icon"></span>
+        <button class="nav-item" type="button" data-view="scheduled">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>
           <span>Scheduled</span>
         </button>
-        <button class="nav-item" id="contacts-tab" type="button" data-view="contacts">
-          <span class="nav-icon contacts-icon"></span>
+        <button class="nav-item" type="button" data-view="contacts">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.7-3.8 3.4-6 7-6s6.3 2.2 7 6"/></svg>
           <span>Contacts</span>
         </button>
       </nav>
-    </section>
-  </main>
 
-  <template id="contact-row-template">
-    <div class="contact-row">
-      <input class="contact-row-name" type="text" aria-label="Contact name" placeholder="Ayush Waman">
-      <input class="contact-row-number" type="tel" aria-label="Contact number" placeholder="+918879279251">
-      <button class="remove-contact-button" type="button" aria-label="Remove contact">Remove</button>
-    </div>
-  </template>
-
-  <template id="call-card-template">
-    <article class="call-card">
-      <div class="call-card-top">
-        <div>
-          <p class="call-card-label">Scheduled</p>
-          <h4 class="contact-name"></h4>
-        </div>
-        <span class="status-badge"></span>
+      <!-- The small icon in the corner is a shortcut to the Contacts tab -->
+      <div class="header-actions">
+        <button class="icon-button" type="button" data-view="contacts" aria-label="Contacts and setup" title="Contacts and setup">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+        </button>
       </div>
-      <p class="meta-line"></p>
-      <p class="message-line"></p>
-      <div class="card-actions"></div>
+    </div>
+  </header>
+
+
+  <!-- ============ HOME ============ -->
+  <section class="view" id="home-view">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="greeting" id="greeting">Good afternoon, Ayush</p>
+        <h1 class="hero-title">
+          <span class="line">Write it like a text.</span>
+          <em class="line">Send it as a call.</em>
+        </h1>
+        <p class="hero-sub">Say who to call, what to tell them and when. CallAI rings them at the right time and reads your message aloud.</p>
+
+        <!-- The form: one text box and a button -->
+        <form class="composer" id="schedule-form">
+          <textarea id="prompt-input" rows="3" aria-label="Describe the call" placeholder="Call Rahul tomorrow at 4 PM and ask about the project update" required></textarea>
+          <div class="composer-bar">
+            <button class="icon-button" type="button" disabled aria-label="Voice input" title="Voice input isn't available in the web demo yet">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+            </button>
+            <button class="primary-button" id="send-button" type="submit">
+              <span id="send-label">Preview call</span>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </form>
+
+        <!-- Red message for errors -->
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+
+        <!-- Shown while we wait for the server. Each bar has its own height and start delay. -->
+        <section class="card processing-card" id="processing-box" aria-live="polite" hidden>
+          <div class="processing-waves" aria-hidden="true">
+            <span style="height: 9px"></span>
+            <span style="height: 18px; animation-delay: 0.1s"></span>
+            <span style="height: 28px; animation-delay: 0.2s"></span>
+            <span style="height: 16px; animation-delay: 0.3s"></span>
+            <span style="height: 10px; animation-delay: 0.4s"></span>
+          </div>
+          <div>
+            <p class="card-title">Reading your request</p>
+            <p class="note">Finding the contact and time, and drafting what to say.</p>
+          </div>
+        </section>
+
+        <!-- Shown when the server could not find everything it needs (app.js hides the fields it does not ask for) -->
+        <section class="card" id="missing-box" aria-live="polite" hidden>
+          <h2 class="card-title">A few details are missing</h2>
+          <p class="note">Fill these in so the call can be scheduled.</p>
+          <div class="missing-fields">
+            <label class="field"><span>Contact name</span><input id="missing-name"></label>
+            <label class="field"><span>Contact number</span><input id="missing-number" type="tel" placeholder="+91XXXXXXXXXX"></label>
+            <label class="field"><span>Message to convey</span><textarea id="missing-message" rows="3"></textarea></label>
+            <label class="field"><span>Call time in IST</span><input id="missing-time" type="datetime-local"></label>
+          </div>
+          <button class="primary-button block" id="continue-button" type="button">Continue</button>
+        </section>
+
+        <!-- Shown when the server understood the request and wants a yes from the user -->
+        <section class="card" id="confirm-box" aria-live="polite" hidden>
+          <h2 class="card-title">Confirm this call</h2>
+          <dl class="confirm-list">
+            <div>
+              <dt>To</dt>
+              <dd><span id="confirm-name"></span><span class="sub" id="confirm-number"></span></dd>
+            </div>
+            <div>
+              <dt>When</dt>
+              <dd id="confirm-time"></dd>
+            </div>
+            <div>
+              <dt>Message</dt>
+              <dd id="confirm-message"></dd>
+            </div>
+          </dl>
+          <div class="confirm-actions">
+            <button class="secondary-button" id="edit-button" type="button">Edit</button>
+            <button class="primary-button" id="confirm-button" type="button">Schedule call</button>
+          </div>
+        </section>
+
+        <!-- Example texts. styles.css hides this while one of the boxes above is open. -->
+        <div class="examples">
+          <span class="examples-label">Try</span>
+          <ul>
+            <li><button class="example" type="button" data-prompt="Call Ayush and tell him he owes me 50 rupees tomorrow at 3pm">Payment reminder</button></li>
+            <li><button class="example" type="button" data-prompt="Call Rahul after 2 hours and ask him about the project update">Project check-in</button></li>
+            <li><button class="example" type="button" data-prompt="Call 8879279251 tomorrow at 9am and tell him the meeting is confirmed">Meeting confirmation</button></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- The example card on the right -->
+      <aside class="preview">
+        <div class="preview-head">
+          <span class="preview-label">Example</span>
+          <span class="preview-when">Tomorrow, 4:00 pm</span>
+        </div>
+        <div class="bubble bubble-in">
+          <span class="bubble-label">You type</span>
+          <p>Call Rahul tomorrow at 4 PM and ask about the project update</p>
+        </div>
+        <svg class="icon preview-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+        <div class="bubble bubble-out">
+          <span class="bubble-label">Rahul hears</span>
+          <p>&ldquo;Hi Rahul, this is an automated message on behalf of <span data-user-name>Ayush</span>. Could you share the project update when you get a chance?&rdquo;</p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- The dark band at the bottom -->
+    <section class="steps-band">
+      <div class="steps-inner">
+        <h2 class="steps-title">How it works</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <h3>Write it</h3>
+            <p>Type who to call, what to say and when, the way you would text a friend.</p>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <h3>Check it</h3>
+            <p>CallAI picks out the contact and time, then drafts a short spoken message for you to confirm.</p>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <h3>We call</h3>
+            <p>At the time you chose, your contact gets a call and hears the message read aloud.</p>
+          </li>
+        </ol>
+        <p class="footnote">Built with DeepSeek, ElevenLabs and Exotel. All times are in IST.</p>
+      </div>
+    </section>
+  </section>
+
+
+  <!-- ============ SCHEDULED ============ -->
+  <section class="view" id="scheduled-view" hidden>
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <h2 class="page-title">Scheduled</h2>
+          <p class="page-sub">Upcoming and past calls.</p>
+        </div>
+        <button class="text-button" id="refresh-button" type="button">Refresh</button>
+      </div>
+
+      <p class="form-error" id="calls-error" role="alert" hidden>Couldn't load calls. Check that the backend is running.</p>
+
+      <section class="call-group">
+        <div class="group-head">
+          <h3>Upcoming</h3>
+          <span class="count" id="upcoming-count">0</span>
+        </div>
+        <div class="call-list empty-state" id="upcoming-list">No upcoming calls yet.</div>
+      </section>
+
+      <section class="call-group">
+        <div class="group-head">
+          <h3>History</h3>
+          <span class="count" id="past-count">0</span>
+        </div>
+        <div class="call-list empty-state" id="past-list">No past calls yet.</div>
+      </section>
+    </div>
+  </section>
+
+
+  <!-- ============ CONTACTS ============ -->
+  <section class="view" id="contacts-view" hidden>
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <h2 class="page-title">Contacts</h2>
+          <p class="page-sub">Only used by this test page. The Android app has its own profile and contacts.</p>
+        </div>
+        <span class="health-pill" id="health-pill">Checking backend</span>
+      </div>
+
+      <div class="card">
+        <div class="field-row">
+          <label class="field"><span>User ID</span><input id="user-id" value="user_001"></label>
+          <label class="field"><span>Your name</span><input id="user-name" value="Ayush"></label>
+        </div>
+        <label class="field">
+          <span>Contacts</span>
+          <textarea id="contacts" rows="4">Ayush Waman, +918879279251</textarea>
+        </label>
+        <p class="note">One contact per line, written as: name, number. Names in your request are matched against this list.</p>
+      </div>
+
+      <!-- What the server answered last. Handy to see what the backend does. -->
+      <details class="reply-box">
+        <summary>Last API response</summary>
+        <pre id="last-reply"></pre>
+      </details>
+    </div>
+  </section>
+
+
+  <!-- The layout of one call in the lists. app.js makes a copy of it for every call. -->
+  <template id="call-template">
+    <article class="call-item">
+      <div class="date-block">
+        <span class="date-month"></span>
+        <span class="date-day"></span>
+      </div>
+      <div class="call-body">
+        <div class="call-item-head">
+          <h4 class="contact-name"></h4>
+          <span class="status-badge"></span>
+        </div>
+        <p class="meta-line"></p>
+        <p class="message-line"></p>
+        <div class="card-actions"></div>
+      </div>
     </article>
   </template>
 

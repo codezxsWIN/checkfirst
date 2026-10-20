@@ -1,448 +1,444 @@
+// CallAI web page
+//
+// What this file does:
+//   1. Tabs       - shows one of the three sections: Home, Scheduled or Contacts
+//   2. Home       - sends what the user typed to the server and shows the answer
+//   3. Scheduled  - lists the calls of the user and lets them cancel one
+//
+// It talks to the Flask backend with fetch():
+//   POST   /schedule-call    send the typed text (later also: the missing details, the confirmation)
+//   GET    /calls?user_id=   get the upcoming and past calls
+//   DELETE /calls/<id>       cancel a call that has not happened yet
+//   GET    /health           check that the backend is running
+
+const IST = "Asia/Kolkata"; // every call time is shown in Indian time
+
+
+// ---------- The page elements we use ----------
+
+// Home: the form
 const scheduleForm = document.getElementById("schedule-form");
-const analyzeButton = document.getElementById("analyze-button");
+const promptInput = document.getElementById("prompt-input");
+const sendButton = document.getElementById("send-button");
+const sendLabel = document.getElementById("send-label");
+const formError = document.getElementById("form-error");
+
+// Home: the boxes under the form
+const processingBox = document.getElementById("processing-box");
+const missingBox = document.getElementById("missing-box");
+const confirmBox = document.getElementById("confirm-box");
+
+// The inputs of the "missing details" box. The keys are the field names the server uses.
+const missingInputs = {
+  contact_name: document.getElementById("missing-name"),
+  contact_number: document.getElementById("missing-number"),
+  message: document.getElementById("missing-message"),
+  scheduled_time: document.getElementById("missing-time"),
+};
 const continueButton = document.getElementById("continue-button");
-const addContactButton = document.getElementById("add-contact-button");
-const contactsList = document.getElementById("contacts-list");
-const contactRowTemplate = document.getElementById("contact-row-template");
-const missingSection = document.getElementById("missing-section");
-const missingFields = document.getElementById("missing-fields");
-const confirmationCard = document.getElementById("confirmation-card");
-const processingCard = document.getElementById("processing-card");
-const confirmContact = document.getElementById("confirm-contact");
+
+// The "confirm" box
+const confirmName = document.getElementById("confirm-name");
+const confirmNumber = document.getElementById("confirm-number");
 const confirmTime = document.getElementById("confirm-time");
 const confirmMessage = document.getElementById("confirm-message");
 const confirmButton = document.getElementById("confirm-button");
 const editButton = document.getElementById("edit-button");
-const refreshButton = document.getElementById("refresh-button");
-const healthPill = document.getElementById("health-pill");
-const feedbackOutput = document.getElementById("feedback-output");
-const debugPanel = document.getElementById("debug-panel");
-const userFilter = document.getElementById("user-filter");
+
+// Scheduled: the lists
 const upcomingList = document.getElementById("upcoming-list");
 const pastList = document.getElementById("past-list");
 const upcomingCount = document.getElementById("upcoming-count");
 const pastCount = document.getElementById("past-count");
-const callCardTemplate = document.getElementById("call-card-template");
-const homeView = document.getElementById("home-view");
-const scheduledView = document.getElementById("scheduled-view");
-const settingsPanel = document.getElementById("settings-panel");
-const settingsToggle = document.getElementById("settings-toggle");
-const homeTab = document.getElementById("home-tab");
-const scheduledTab = document.getElementById("scheduled-tab");
-const contactsTab = document.getElementById("contacts-tab");
-const promptInput = document.getElementById("prompt-input");
-const greetingLine = document.getElementById("greeting-line");
-const greetingName = document.getElementById("greeting-name");
+const callsError = document.getElementById("calls-error");
+const refreshButton = document.getElementById("refresh-button");
+const callTemplate = document.getElementById("call-template");
 
-let currentAgentResult = null;
-let currentView = "home";
+// Contacts: the details we send with every request, and the box that shows the last server answer
+const userIdInput = document.getElementById("user-id");
+const userNameInput = document.getElementById("user-name");
+const contactsInput = document.getElementById("contacts");
+const healthPill = document.getElementById("health-pill");
+const lastReply = document.getElementById("last-reply");
+
+// What the server understood from the typed text. We send it back when the user confirms.
+let draft = null;
 
 
-function setView(viewName) {
-  currentView = viewName;
-  const showHome = viewName === "home";
-  homeView.classList.toggle("view-panel-active", showHome);
-  scheduledView.classList.toggle("view-panel-active", !showHome);
-  homeTab.classList.toggle("active", showHome);
-  scheduledTab.classList.toggle("active", !showHome);
-  contactsTab.classList.toggle("active", false);
+// ---------- Tabs ----------
+
+// Shows one section ("home", "scheduled" or "contacts") and hides the others
+function showView(name) {
+  for (const view of document.querySelectorAll(".view")) {
+    view.hidden = view.id !== name + "-view";
+  }
+  for (const tab of document.querySelectorAll(".nav-item")) {
+    const isOpen = tab.dataset.view === name;
+    tab.classList.toggle("active", isOpen); // the open tab is highlighted
+    if (isOpen) {
+      tab.setAttribute("aria-current", "page"); // tells screen readers which tab is open
+    } else {
+      tab.removeAttribute("aria-current");
+    }
+  }
+  window.scrollTo(0, 0);
+
+  if (name === "scheduled") {
+    loadCalls(); // always show up-to-date calls
+  }
 }
 
-
-function resetConversationPanels() {
-  processingCard.classList.add("hidden");
-  missingSection.classList.add("hidden");
-  confirmationCard.classList.add("hidden");
+// Every button with a data-view (the three tabs and the icon in the corner) opens that section
+for (const button of document.querySelectorAll("[data-view]")) {
+  button.addEventListener("click", () => showView(button.dataset.view));
 }
 
+// The top bar only gets a line underneath once the page is scrolled
+window.addEventListener("scroll", () => {
+  document.querySelector(".site-header").classList.toggle("is-scrolled", window.scrollY > 4);
+});
 
-function getIstDate() {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-  const value = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+
+// ---------- Small helpers ----------
+
+function showError(text) {
+  formError.textContent = text;
+  formError.hidden = false;
+}
+
+// Turns a time from the server into text like "Wednesday, 21 October 2026 at 4:00 pm IST"
+function formatTime(isoText) {
+  const date = new Date(isoText);
+  return date.toLocaleString("en-IN", { timeZone: IST, dateStyle: "full", timeStyle: "short" }) + " IST";
+}
+
+// +919812345678 becomes +91 98123 45678 (with non-breaking spaces, so the number never splits over two lines)
+function formatPhone(number) {
+  if (number.length === 13 && number.startsWith("+91")) {
+    return number.slice(0, 3) + "\u00a0" + number.slice(3, 8) + "\u00a0" + number.slice(8);
+  }
+  return number;
+}
+
+// Reads the contacts box. Each line looks like: Ayush Waman, +918879279251
+function getContacts() {
+  const contacts = [];
+  for (const line of contactsInput.value.split("\n")) {
+    const parts = line.split(",");
+    const name = parts[0].trim();
+    const number = (parts[1] || "").trim();
+    if (name && number) {
+      contacts.push({ name: name, number: number });
+    }
+  }
+  return contacts;
+}
+
+// The basic request the server needs
+function buildRequest() {
   return {
-    hour: Number(value.hour || "12"),
+    user_id: userIdInput.value.trim(),
+    user_name: userNameInput.value.trim(),
+    raw_prompt: promptInput.value.trim(),
+    contacts: getContacts(),
   };
 }
 
-
+// "Good morning, Ayush" - the greeting depends on the hour. The name is also used in the example card.
 function updateGreeting() {
-  const userName = String(scheduleForm.elements.user_name.value || "").trim() || "Ayush";
-  const { hour } = getIstDate();
-  let timeGreeting = "Good evening,";
+  const hour = new Date().getHours();
+  let hello = "Good evening";
   if (hour < 12) {
-    timeGreeting = "Good morning,";
+    hello = "Good morning";
   } else if (hour < 17) {
-    timeGreeting = "Good afternoon,";
-  }
-  greetingLine.textContent = timeGreeting;
-  greetingName.textContent = userName;
-}
-
-
-function showFeedback(payload) {
-  feedbackOutput.textContent = JSON.stringify(payload, null, 2);
-}
-
-
-function addContactRow(name = "", number = "") {
-  const fragment = contactRowTemplate.content.cloneNode(true);
-  const row = fragment.querySelector(".contact-row");
-  row.querySelector(".contact-row-name").value = name;
-  row.querySelector(".contact-row-number").value = number;
-  row.querySelector(".remove-contact-button").addEventListener("click", () => row.remove());
-  contactsList.appendChild(fragment);
-}
-
-
-function readContacts() {
-  return [...contactsList.querySelectorAll(".contact-row")]
-    .map((row) => ({
-      name: row.querySelector(".contact-row-name").value.trim(),
-      number: row.querySelector(".contact-row-number").value.trim(),
-    }))
-    .filter((contact) => contact.name || contact.number);
-}
-
-
-function toIstIso(localValue) {
-  return localValue ? `${localValue}:00+05:30` : "";
-}
-
-
-function toLocalDateTimeValue(isoValue) {
-  if (!isoValue) {
-    return "";
-  }
-  const date = new Date(isoValue);
-  const formatter = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return formatter.format(date).replace(" ", "T");
-}
-
-
-function formatScheduledTime(isoValue) {
-  if (!isoValue) {
-    return "Not provided";
-  }
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "full",
-    timeStyle: "short",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(isoValue));
-}
-
-
-function buildBaseRequest() {
-  const formData = new FormData(scheduleForm);
-  const requestBody = {
-    user_id: String(formData.get("user_id") || "").trim(),
-    user_name: String(formData.get("user_name") || "").trim(),
-    raw_prompt: String(formData.get("raw_prompt") || "").trim(),
-    contacts: readContacts(),
-  };
-
-  const missingTime = missingFields.querySelector('[name="scheduled_time"]');
-  const missingNumber = missingFields.querySelector('[name="contact_number"]');
-  const missingName = missingFields.querySelector('[name="contact_name"]');
-  const missingMessage = missingFields.querySelector('[name="message"]');
-
-  if (missingTime?.value) {
-    requestBody.chosen_time = toIstIso(missingTime.value);
-  }
-  if (missingNumber?.value.trim()) {
-    requestBody.confirmed_number = missingNumber.value.trim();
-  }
-  if (missingName?.value.trim()) {
-    requestBody.confirmed_contact_name = missingName.value.trim();
-  }
-  if (missingMessage?.value.trim()) {
-    requestBody.confirmed_message = missingMessage.value.trim();
-  }
-  return requestBody;
-}
-
-
-function createMissingField(fieldName, payload) {
-  const label = document.createElement("label");
-  label.className = "missing-field";
-
-  const title = document.createElement("span");
-  const fieldLabels = {
-    contact_name: "Contact name",
-    contact_number: "Contact number",
-    message: "Message to convey",
-    scheduled_time: "Call time in IST",
-  };
-  title.textContent = fieldLabels[fieldName] || fieldName;
-  label.appendChild(title);
-
-  const input = fieldName === "message" ? document.createElement("textarea") : document.createElement("input");
-  input.name = fieldName;
-  input.required = true;
-  if (fieldName === "scheduled_time") {
-    input.type = "datetime-local";
-    input.value = toLocalDateTimeValue(payload.scheduled_time);
-  } else if (fieldName === "contact_number") {
-    input.type = "tel";
-    input.placeholder = "+918879279251";
-    input.value = payload.contact_number || "";
-  } else if (fieldName === "message") {
-    input.rows = 3;
-    input.value = payload.agent_result?.message || "";
-  } else {
-    input.type = "text";
-    input.value = payload.contact_name || "";
+    hello = "Good afternoon";
   }
 
-  label.appendChild(input);
-  return label;
-}
-
-
-function renderMissingFields(payload) {
-  const fields = payload.missing_fields || [];
-  missingFields.replaceChildren(...fields.map((field) => createMissingField(field, payload)));
-  processingCard.classList.add("hidden");
-  confirmationCard.classList.add("hidden");
-  missingSection.classList.toggle("hidden", fields.length === 0);
-  continueButton.textContent = "Continue";
-  missingFields.querySelector("input, textarea")?.focus();
-}
-
-
-function showConfirmation(payload) {
-  currentAgentResult = payload.agent_result;
-  processingCard.classList.add("hidden");
-  missingSection.classList.add("hidden");
-  confirmationCard.classList.remove("hidden");
-  confirmContact.textContent = `${payload.contact_name} / ${payload.contact_number}`;
-  confirmTime.textContent = formatScheduledTime(payload.scheduled_time);
-  confirmMessage.textContent = payload.message_preview;
-  confirmationCard.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
-
-async function postScheduleCall(body) {
-  const response = await fetch("/schedule-call", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.message || "The backend could not process this request.");
+  const name = userNameInput.value.trim();
+  document.getElementById("greeting").textContent = name ? hello + ", " + name : hello;
+  for (const place of document.querySelectorAll("[data-user-name]")) {
+    place.textContent = name || "your name";
   }
-  return payload;
 }
 
 
-async function checkHealth() {
+// ---------- Home: scheduling a call ----------
+
+// While we wait for the server: show the "Working on it" box and block the buttons, so nothing is sent twice
+function setBusy(isBusy) {
+  for (const button of [sendButton, continueButton, confirmButton]) {
+    button.disabled = isBusy;
+  }
+  sendLabel.textContent = isBusy ? "Working…" : "Preview call";
+  processingBox.hidden = !isBusy;
+}
+
+// Sends one request to /schedule-call and deals with the answer
+async function sendToServer(body) {
+  formError.hidden = true;
+  setBusy(true);
+
+  let data = {};
+  let errorText = ""; // stays empty when everything went well
+
   try {
-    const response = await fetch("/health");
-    const payload = await response.json();
-    healthPill.textContent = payload.status === "ok" ? "Backend ready" : "Backend issue";
-    healthPill.classList.toggle("health-pill-live", payload.status === "ok");
-  } catch (error) {
-    healthPill.textContent = "Backend offline";
-    healthPill.classList.remove("health-pill-live");
-  }
-}
-
-
-function renderCallList(container, calls, showCancel) {
-  if (!calls.length) {
-    container.className = "call-list empty-state";
-    container.textContent = showCancel ? "No upcoming calls yet." : "No call history yet.";
-    return;
-  }
-  container.className = "call-list";
-  container.replaceChildren(...calls.map((call) => buildCallCard(call, showCancel)));
-}
-
-
-function buildCallCard(call, showCancel) {
-  const fragment = callCardTemplate.content.cloneNode(true);
-  fragment.querySelector(".contact-name").textContent = call.contact_name;
-  fragment.querySelector(".meta-line").textContent = `${formatScheduledTime(call.scheduled_time)} / ${call.contact_number}`;
-  fragment.querySelector(".message-line").textContent = call.rephrased_message || call.original_message;
-
-  const statusBadge = fragment.querySelector(".status-badge");
-  statusBadge.textContent = call.status;
-  statusBadge.classList.add(call.status);
-
-  const actions = fragment.querySelector(".card-actions");
-  if (showCancel && call.status === "pending") {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "subtle-button danger-button";
-    button.textContent = "Cancel";
-    button.addEventListener("click", async () => {
-      const response = await fetch(`/calls/${call.id}`, { method: "DELETE" });
-      const payload = await response.json();
-      showFeedback(payload);
-      await loadCalls();
+    const response = await fetch("/schedule-call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-    actions.appendChild(button);
-  }
-  return fragment;
-}
-
-
-async function loadCalls() {
-  const userId = userFilter.value.trim();
-  if (!userId) {
-    return;
-  }
-
-  try {
-    const response = await fetch(`/calls?user_id=${encodeURIComponent(userId)}`);
-    const payload = await response.json();
-    renderCallList(upcomingList, payload.upcoming || [], true);
-    renderCallList(pastList, payload.past || [], false);
-    upcomingCount.textContent = String((payload.upcoming || []).length);
-    pastCount.textContent = String((payload.past || []).length);
-  } catch (error) {
-    showFeedback({ status: "error", message: "Unable to load calls." });
-  }
-}
-
-
-function setProcessingState(isProcessing, buttonLabel) {
-  analyzeButton.disabled = isProcessing;
-  analyzeButton.textContent = buttonLabel;
-  processingCard.classList.toggle("hidden", !isProcessing);
-}
-
-
-scheduleForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setView("home");
-  currentAgentResult = null;
-  resetConversationPanels();
-  setProcessingState(true, "Thinking...");
-
-  try {
-    const payload = await postScheduleCall(buildBaseRequest());
-    showFeedback(payload);
-    debugPanel.open = true;
-
-    if (payload.status === "needs_info") {
-      renderMissingFields(payload);
-      analyzeButton.textContent = "Send";
-    } else if (payload.status === "needs_confirmation") {
-      showConfirmation(payload);
-      analyzeButton.textContent = "Send";
+    data = await response.json().catch(() => ({})); // an error page is not JSON
+    if (!response.ok) {
+      errorText = data.message || "Something went wrong. Please try again.";
     }
   } catch (error) {
-    showFeedback({ status: "error", message: error.message });
-    debugPanel.open = true;
-    processingCard.classList.add("hidden");
-    analyzeButton.textContent = "Try again";
-  } finally {
-    analyzeButton.disabled = false;
+    errorText = "Couldn't reach the backend. Check that it's running and try again.";
   }
-});
 
+  setBusy(false); // the answer is here, so the buttons work again
+  lastReply.textContent = JSON.stringify(errorText ? { status: "error", message: errorText } : data, null, 2);
 
-confirmButton.addEventListener("click", async () => {
-  if (!currentAgentResult) {
-    return;
+  if (errorText) {
+    showError(errorText);
+    sendLabel.textContent = "Try again"; // the button invites another attempt
+  } else {
+    handleReply(data);
   }
-  confirmButton.disabled = true;
-  confirmButton.textContent = "Scheduling...";
+}
 
-  try {
-    const body = buildBaseRequest();
-    body.confirmed = true;
-    body.agent_result = currentAgentResult;
-    const payload = await postScheduleCall(body);
-    showFeedback(payload);
-    debugPanel.open = true;
+// The server answers with a "status" that tells us what to do next
+function handleReply(data) {
+  missingBox.hidden = true;
+  confirmBox.hidden = true;
 
-    if (payload.status === "scheduled") {
-      resetConversationPanels();
-      currentAgentResult = null;
-      promptInput.value = "";
-      await loadCalls();
-      setView("scheduled");
-    } else if (payload.status === "needs_info") {
-      renderMissingFields(payload);
+  if (data.status === "needs_info") {
+    if (data.message) {
+      showError(data.message); // e.g. "Choose a time at least 2 minutes ahead"
     }
-  } catch (error) {
-    showFeedback({ status: "error", message: error.message });
-    debugPanel.open = true;
-  } finally {
-    confirmButton.disabled = false;
-    confirmButton.textContent = "Schedule call";
+    showMissingBox(data);
+  } else if (data.status === "needs_confirmation") {
+    showConfirmBox(data);
+  } else if (data.status === "scheduled") {
+    promptInput.value = "";
+    draft = null;
+    showView("scheduled"); // the new call shows up in the list
   }
+}
+
+// Asks for the details the server could not find. Only those fields are shown.
+function showMissingBox(data) {
+  // Fill in what the server did understand
+  missingInputs.contact_name.value = data.contact_name || "";
+  missingInputs.contact_number.value = data.contact_number || "";
+  missingInputs.message.value = data.agent_result.message || "";
+  missingInputs.scheduled_time.value = "";
+
+  for (const name in missingInputs) {
+    const isMissing = data.missing_fields.includes(name);
+    missingInputs[name].parentElement.hidden = !isMissing; // the parent is the <label>
+  }
+  missingBox.hidden = false;
+
+  // Put the cursor in the first field that is asked for
+  for (const name in missingInputs) {
+    if (data.missing_fields.includes(name)) {
+      missingInputs[name].focus();
+      break;
+    }
+  }
+}
+
+// Shows what the server understood and waits for the user to say yes
+function showConfirmBox(data) {
+  draft = data.agent_result;
+  confirmName.textContent = data.contact_name;
+  confirmNumber.textContent = formatPhone(data.contact_number);
+  confirmTime.textContent = formatTime(data.scheduled_time);
+  confirmMessage.textContent = data.message_preview;
+  confirmBox.hidden = false;
+  confirmBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// "Preview call" button: send the typed text
+scheduleForm.addEventListener("submit", (event) => {
+  event.preventDefault(); // stay on the page instead of reloading it
+  missingBox.hidden = true;
+  confirmBox.hidden = true;
+  draft = null;
+  sendToServer(buildRequest());
 });
 
+// "Continue" button: send the typed text again, together with the details the user filled in
+function sendMissingDetails() {
+  // The names the server expects for each detail
+  const serverNames = {
+    contact_name: "confirmed_contact_name",
+    contact_number: "confirmed_number",
+    message: "confirmed_message",
+    scheduled_time: "chosen_time",
+  };
 
+  const body = buildRequest();
+  for (const name in missingInputs) {
+    const input = missingInputs[name];
+    if (input.parentElement.hidden || input.value.trim() === "") {
+      continue; // this detail was not asked for, or was left empty
+    }
+    if (name === "scheduled_time") {
+      body[serverNames[name]] = input.value + ":00+05:30"; // the time box has no seconds and no time zone
+    } else {
+      body[serverNames[name]] = input.value.trim();
+    }
+  }
+  sendToServer(body);
+}
+
+// "Schedule call" button: tell the server that the user agrees
+function sendConfirmation() {
+  const body = buildRequest();
+  body.confirmed = true;
+  body.agent_result = draft;
+  sendToServer(body);
+}
+
+continueButton.addEventListener("click", sendMissingDetails);
+confirmButton.addEventListener("click", sendConfirmation);
+
+// "Edit" button: go back to the text box
 editButton.addEventListener("click", () => {
-  confirmationCard.classList.add("hidden");
-  currentAgentResult = null;
+  confirmBox.hidden = true;
+  draft = null;
   promptInput.focus();
 });
 
+// If the text changes, an old answer no longer matches it
+promptInput.addEventListener("input", () => {
+  missingBox.hidden = true;
+  confirmBox.hidden = true;
+  draft = null;
+});
 
-function toggleSettings(forceOpen) {
-  const shouldShow = typeof forceOpen === "boolean" ? forceOpen : settingsPanel.classList.contains("hidden");
-  settingsPanel.classList.toggle("hidden", !shouldShow);
-  settingsToggle.setAttribute("aria-expanded", String(shouldShow));
-  contactsTab.classList.toggle("active", shouldShow);
+// The example buttons put their text into the text box
+for (const button of document.querySelectorAll(".example")) {
+  button.addEventListener("click", () => {
+    promptInput.value = button.dataset.prompt;
+    promptInput.focus();
+  });
 }
 
 
-settingsToggle.addEventListener("click", () => toggleSettings());
+// ---------- Scheduled: the list of calls ----------
 
+function showCallsError(text) {
+  callsError.textContent = text;
+  callsError.hidden = false;
+}
 
-homeTab.addEventListener("click", () => setView("home"));
-scheduledTab.addEventListener("click", async () => {
-  setView("scheduled");
-  toggleSettings(false);
-  await loadCalls();
-});
-contactsTab.addEventListener("click", () => {
-  setView("home");
-  toggleSettings();
-});
+// Gives a part of a time (month, day, ...) in Indian time. Example: part(date, { month: "short" }) gives "Oct".
+function part(date, options) {
+  options.timeZone = IST;
+  return date.toLocaleString("en-IN", options);
+}
 
-addContactButton.addEventListener("click", () => addContactRow());
+// The month shown on a call. Calls from another year get the year too, e.g. "Jan ’25"
+function monthLabel(date) {
+  const month = part(date, { month: "short" });
+  const year = part(date, { year: "2-digit" });
+  const thisYear = part(new Date(), { year: "2-digit" });
+  return year === thisYear ? month : month + " ’" + year;
+}
+
+// Fills one list (upcoming or past) with the calls
+function showCalls(container, calls, isUpcoming) {
+  container.textContent = ""; // remove the old rows
+
+  if (calls.length === 0) {
+    container.className = "call-list empty-state";
+    container.textContent = isUpcoming ? "No upcoming calls yet." : "No past calls yet.";
+    return;
+  }
+  container.className = "call-list";
+
+  for (const call of calls) {
+    const row = callTemplate.content.cloneNode(true); // copy the layout from the <template>
+    const date = new Date(call.scheduled_time);
+
+    row.querySelector(".call-item").classList.toggle("is-upcoming", isUpcoming);
+    row.querySelector(".date-month").textContent = monthLabel(date);
+    row.querySelector(".date-day").textContent = part(date, { day: "numeric" });
+    row.querySelector(".contact-name").textContent = call.contact_name;
+    row.querySelector(".meta-line").textContent =
+      part(date, { weekday: "short", hour: "numeric", minute: "2-digit" }) + " · " + formatPhone(call.contact_number);
+    row.querySelector(".message-line").textContent = call.rephrased_message || call.original_message;
+
+    const badge = row.querySelector(".status-badge");
+    badge.textContent = call.status;
+    badge.classList.add(call.status); // the status decides the colour
+
+    // Only calls that have not happened yet can be cancelled
+    if (isUpcoming && call.status === "pending") {
+      const cancelButton = document.createElement("button");
+      cancelButton.type = "button";
+      cancelButton.className = "text-button danger-button";
+      cancelButton.textContent = "Cancel";
+      cancelButton.addEventListener("click", () => cancelCall(call.id));
+      row.querySelector(".card-actions").appendChild(cancelButton);
+    }
+
+    container.appendChild(row);
+  }
+}
+
+// Asks the server for the calls of the current user
+async function loadCalls() {
+  callsError.hidden = true;
+  try {
+    const response = await fetch("/calls?user_id=" + encodeURIComponent(userIdInput.value.trim()));
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message);
+    }
+    showCalls(upcomingList, data.upcoming, true);
+    showCalls(pastList, data.past, false);
+    upcomingCount.textContent = data.upcoming.length;
+    pastCount.textContent = data.past.length;
+  } catch (error) {
+    showCallsError("Couldn't load calls. Check that the backend is running.");
+  }
+}
+
+async function cancelCall(id) {
+  try {
+    const response = await fetch("/calls/" + id, { method: "DELETE" });
+    lastReply.textContent = JSON.stringify(await response.json().catch(() => ({})), null, 2);
+    if (!response.ok) {
+      throw new Error("Cancel failed");
+    }
+    loadCalls();
+  } catch (error) {
+    showCallsError("Couldn't cancel that call.");
+  }
+}
+
 refreshButton.addEventListener("click", loadCalls);
-userFilter.addEventListener("change", loadCalls);
-
-scheduleForm.elements.user_id.addEventListener("change", () => {
-  userFilter.value = scheduleForm.elements.user_id.value.trim();
-  loadCalls();
-});
-scheduleForm.elements.user_name.addEventListener("input", updateGreeting);
-
-[...document.querySelectorAll(".suggestion-chip")].forEach((button) => {
-  button.addEventListener("click", () => {
-    promptInput.value = button.dataset.prompt || "";
-    promptInput.focus();
-  });
-});
 
 
-addContactRow("Ayush Waman", "+918879279251");
+// ---------- Contacts: backend check ----------
+
+async function checkBackend() {
+  try {
+    const response = await fetch("/health");
+    const data = await response.json();
+    healthPill.textContent = data.status === "ok" ? "Backend ready" : "Backend problem";
+    healthPill.classList.toggle("health-pill-live", data.status === "ok"); // green dot
+  } catch (error) {
+    healthPill.textContent = "Backend offline";
+  }
+}
+
+
+// ---------- Start ----------
+
+userNameInput.addEventListener("input", updateGreeting);
 updateGreeting();
-checkHealth();
-loadCalls();
+checkBackend();

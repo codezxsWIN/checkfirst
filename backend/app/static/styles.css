@@ -1,790 +1,1076 @@
+/* CallAI styles
+
+   1. Colours and basics   2. Top bar   3. Buttons and form fields
+   4. Home tab   5. Scheduled and Contacts tabs   6. Small screens */
+
+
+/* ========== 1. Colours and basics ========== */
+
 :root {
-  --bg: #f5f6f2;
-  --phone: #fcfcfb;
-  --text: #161d1a;
-  --muted: #8b9097;
-  --line: #e8eaee;
-  --soft: #f6f7f8;
-  --accent: #20c486;
-  --accent-soft: rgba(32, 196, 134, 0.16);
-  --accent-deep: #14aa72;
-  --danger: #c05a67;
-  --danger-soft: rgba(192, 90, 103, 0.12);
-  --shadow: 0 28px 70px rgba(20, 28, 24, 0.08);
+  /* Change a colour here and it changes everywhere */
+  --paper: #f5f2e9;          /* page background */
+  --paper-2: #ece8dc;        /* slightly darker background */
+  --card: #fffdf8;           /* boxes */
+  --line: #ddd7c7;           /* thin borders */
+  --control: #7f8275;        /* borders of inputs and buttons */
+  --control-soft: #bdb7a4;
+  --ink: #12201a;            /* main text */
+  --ink-2: #4a564f;          /* softer text */
+  --ink-3: #5d6860;
+  --placeholder: #6e776f;
+  --forest: #0e2b22;         /* dark green: buttons and the dark band */
+  --forest-hover: #0a2019;
+  --green: #157a59;
+  --green-text: #0f6a4c;
+  --green-100: #e1eee6;
+  --mint: #7fd1a9;
+  --band-muted: #a9bdb2;
+  --ring: rgba(21, 122, 89, 0.2);
+  --danger: #b03a43;
+  --danger-soft: #f6e4e1;
+  --warn: #8a5a00;
+  --warn-soft: #f6e9c8;
+  --info: #1d4f91;
+  --info-soft: #e3ecf7;
+
+  --display: "Newsreader", Georgia, serif;   /* headings */
+  --sans: "DM Sans", system-ui, sans-serif;  /* everything else */
+  --gutter: 32px;                            /* space left and right of the content */
+  --shadow: 0 1px 2px rgba(18, 32, 26, 0.06), 0 12px 28px -16px rgba(18, 32, 26, 0.25);
 }
 
 * {
-  box-sizing: border-box;
-}
-
-html {
-  color-scheme: light;
+  box-sizing: border-box; /* width includes padding and border */
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  font-family: "DM Sans", sans-serif;
-  color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(32, 196, 134, 0.08), transparent 24rem),
-    linear-gradient(180deg, #fafaf8 0%, #f2f4f1 100%);
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased; /* slightly lighter text on Mac */
 }
 
-button,
-input,
-textarea {
+/* Remove the default spacing of the browser. We add our own. */
+h1, h2, h3, h4, p, dl, dd, ul, ol {
+  margin: 0;
+}
+
+ul, ol {
+  padding: 0;
+  list-style: none;
+}
+
+button, input, textarea {
   font: inherit;
+  color: inherit;
 }
 
 button {
   cursor: pointer;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
 }
 
-.app-shell {
+/* The "hidden" attribute always wins. app.js uses it to show and hide things. */
+[hidden] {
+  display: none !important;
+}
+
+.icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+/* ========== 2. Top bar ========== */
+
+.site-header {
+  position: sticky; /* stays at the top while the page scrolls */
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid transparent;
+  background: var(--paper);
+}
+
+/* app.js adds this class once the page is scrolled, so the line only shows when content is underneath */
+.site-header.is-scrolled {
+  border-bottom-color: var(--line);
+}
+
+.site-header-inner {
   display: grid;
-  place-items: center;
-  min-height: 100vh;
-  padding: 18px 12px;
-}
-
-.phone-frame {
-  position: relative;
-  width: min(100%, 280px);
-  min-height: 720px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--phone);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.corner-button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 4;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: white;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-#schedule-form {
-  min-height: 720px;
-}
-
-.view-panel {
-  display: none;
-  min-height: 648px;
-  padding: 28px 16px 86px;
-}
-
-.view-panel-active {
-  display: block;
-}
-
-.home-view {
-  display: none;
-}
-
-.home-view.view-panel-active {
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: 1fr auto 1fr; /* logo | tabs | empty, so the tabs stay in the middle */
   align-items: center;
+  gap: 16px;
+  max-width: 1160px;
+  height: 72px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
 }
 
-.hero-card {
-  max-width: 240px;
-  margin-top: 84px;
-  text-align: center;
-}
-
-.greeting-line,
-.greeting-name {
-  margin: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 2.2rem;
-  font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.06em;
-}
-
-.greeting-name {
-  display: block;
-  margin-top: 2px;
-}
-
-.hero-subtitle {
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-.section-label,
-.call-card-label {
-  margin: 0 0 6px;
-  color: var(--accent-deep);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.processing-card,
-.missing-card,
-.confirm-card,
-.debug-panel {
-  width: 100%;
-  margin-top: 20px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: white;
-}
-
-.processing-card {
-  text-align: center;
-}
-
-.processing-waves {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 5px;
-  height: 30px;
-}
-
-.processing-waves span {
-  width: 5px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--accent), #8de5c0);
-  animation: wave 1s ease-in-out infinite;
-}
-
-.processing-waves span:nth-child(1) {
-  height: 9px;
-  animation-delay: 0s;
-}
-
-.processing-waves span:nth-child(2) {
-  height: 19px;
-  animation-delay: 0.1s;
-}
-
-.processing-waves span:nth-child(3) {
-  height: 27px;
-  animation-delay: 0.2s;
-}
-
-.processing-waves span:nth-child(4) {
-  height: 17px;
-  animation-delay: 0.3s;
-}
-
-.processing-waves span:nth-child(5) {
-  height: 11px;
-  animation-delay: 0.4s;
-}
-
-.processing-title,
-.missing-card h2,
-.confirm-card h2,
-.scheduled-header h2 {
-  margin: 12px 0 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 1.1rem;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-}
-
-.processing-copy,
-.settings-copy,
-.scheduled-copy {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.composer-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  width: 100%;
-  margin-top: 52px;
-  padding: 16px 16px 16px 18px;
-  border: 1px solid #dbdee5;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 8px 18px rgba(18, 26, 22, 0.04);
-}
-
-.composer-field {
-  display: block;
-}
-
-.composer-field textarea {
-  width: 100%;
-  min-height: 72px;
-  padding: 0;
-  border: 0;
-  resize: none;
-  background: transparent;
-  color: var(--text);
-  font-size: 0.88rem;
-  line-height: 1.7;
-}
-
-.composer-field textarea::placeholder {
-  color: #b0a3ba;
-}
-
-.composer-field textarea:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.composer-tools {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.tool-button,
-.send-button {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-}
-
-.tool-button {
-  background: transparent;
-  color: var(--text);
-}
-
-.tool-button::before {
-  content: "";
-  width: 8px;
-  height: 13px;
-  border: 1.8px solid #38403c;
-  border-bottom: 0;
-  border-radius: 8px 8px 4px 4px;
-}
-
-.tool-button::after {
-  content: "";
-  position: absolute;
-  bottom: 8px;
-  width: 10px;
-  height: 7px;
-  border: 1.8px solid #38403c;
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-}
-
-.send-button {
-  background: linear-gradient(180deg, var(--accent), var(--accent-deep));
-  color: white;
-  box-shadow: 0 8px 16px rgba(32, 196, 134, 0.28);
-}
-
-.send-button::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-top: 2px solid white;
-  border-right: 2px solid white;
-  transform: translateY(2px) rotate(-45deg);
-}
-
-.helper-quote {
-  margin: 16px 0 0;
-  color: #8b7f92;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  text-align: center;
-}
-
-.quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px 8px;
-  width: 100%;
-  margin-top: 16px;
-}
-
-.quick-pill,
-.pill-button,
-.secondary-button {
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--soft);
-  color: #4d5360;
-  font-size: 0.74rem;
-  font-weight: 500;
-}
-
-.primary-button {
-  padding: 12px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-deep));
-  color: white;
-  font-weight: 700;
-}
-
-.missing-fields {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.missing-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.missing-field span,
-.filter-field span,
-label span {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-input,
-.missing-field textarea {
-  width: 100%;
-  padding: 12px 13px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: white;
-  color: var(--text);
-}
-
-input:focus,
-.missing-field textarea:focus {
-  outline: none;
-  border-color: rgba(32, 196, 134, 0.44);
-  box-shadow: 0 0 0 4px rgba(32, 196, 134, 0.12);
-}
-
-.confirm-grid {
-  display: grid;
-  gap: 10px;
-  margin: 16px 0 0;
-}
-
-.confirm-grid > div {
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--soft);
-}
-
-.confirm-grid dt {
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.confirm-grid dd {
-  margin: 6px 0 0;
-  color: var(--text);
-  font-size: 0.82rem;
-  line-height: 1.55;
-}
-
-.confirm-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.debug-panel {
-  width: 100%;
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.debug-panel summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.debug-panel pre {
-  margin: 10px 0 0;
-  max-height: 220px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-}
-
-.settings-panel {
-  position: absolute;
-  inset: 48px 12px auto;
-  z-index: 3;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 24px 40px rgba(20, 28, 24, 0.08);
-}
-
-.settings-panel-head,
-.contacts-panel-head,
-.call-group-heading,
-.call-card-top,
-.card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.health-pill,
-.count-badge,
-.status-badge {
+.brand {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  font-weight: 700;
-}
-
-.health-pill {
-  padding: 8px 12px;
-  background: var(--soft);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.health-pill-live {
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-}
-
-.identity-row {
-  display: grid;
   gap: 10px;
-  margin-top: 14px;
+  justify-self: start;
+  color: inherit;
+  text-decoration: none;
 }
 
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.contacts-panel {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-}
-
-.contacts-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.contact-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.remove-contact-button {
-  padding: 10px 12px;
-  border: 1px solid rgba(192, 90, 103, 0.18);
-  border-radius: 14px;
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.scheduled-view {
-  display: none;
-}
-
-.scheduled-view.view-panel-active {
-  display: block;
-}
-
-.scheduled-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.call-group {
-  margin-top: 18px;
-}
-
-.call-group h3 {
-  margin: 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 0.95rem;
-}
-
-.count-badge {
-  min-width: 28px;
+.brand-mark {
+  width: 28px;
   height: 28px;
-  padding: 0 10px;
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-  font-size: 0.72rem;
 }
 
-.muted-count {
-  background: #eef0f2;
-  color: var(--muted);
+.brand-name {
+  font: 600 23px/1 var(--display);
 }
 
-.call-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.empty-state {
+.primary-nav {
   display: flex;
-  min-height: 92px;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  border: 1px dashed var(--line);
-  border-radius: 16px;
-  color: var(--muted);
-  text-align: center;
-  font-size: 0.78rem;
-}
-
-.call-card {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: white;
-}
-
-.contact-name {
-  margin: 5px 0 0;
-  font-family: "Manrope", sans-serif;
-  font-size: 1rem;
-  line-height: 1.1;
-}
-
-.meta-line,
-.message-line {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.message-line {
-  color: var(--text);
-}
-
-.status-badge {
-  padding: 7px 10px;
-  background: #eef0f2;
-  color: var(--muted);
-  font-size: 0.68rem;
-  text-transform: capitalize;
-}
-
-.status-badge.connected {
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-}
-
-.status-badge.pending {
-  background: rgba(199, 152, 79, 0.12);
-  color: #9b6a1f;
-}
-
-.status-badge.failed,
-.status-badge.cancelled {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.bottom-nav {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
-  padding: 12px 10px 16px;
-  border-top: 1px solid var(--line);
-  background: rgba(252, 252, 251, 0.97);
 }
 
 .nav-item {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 600;
+  color: var(--ink-2);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.nav-item .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-item:hover {
+  background: rgba(18, 32, 26, 0.05);
+  color: var(--ink);
 }
 
 .nav-item.active {
-  color: var(--accent-deep);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-weight: 600;
 }
 
-.nav-icon {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #f1f3f4;
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  justify-self: end;
 }
 
-.nav-item.active .nav-icon {
-  background: var(--accent-soft);
+
+/* ========== 3. Buttons and form fields ========== */
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.home-icon::before {
-  content: "";
-  position: absolute;
-  inset: 6px;
-  background: var(--muted);
-  clip-path: polygon(50% 0, 100% 40%, 100% 100%, 0 100%, 0 40%);
+.primary-button {
+  background: var(--forest);
+  color: var(--paper);
 }
 
-.nav-item.active .home-icon::before,
-.nav-item.active .calendar-icon::before,
-.nav-item.active .contacts-icon::before {
-  background: var(--accent-deep);
+.primary-button .icon {
+  width: 18px;
+  height: 18px;
 }
 
-.calendar-icon::before {
-  content: "";
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  bottom: 5px;
-  left: 5px;
-  border: 1.6px solid var(--muted);
-  border-top-width: 4px;
-  border-radius: 4px;
+.primary-button:hover:not(:disabled) {
+  background: var(--forest-hover);
 }
 
-.contacts-icon::before {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 7px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
-.contacts-icon::after {
-  content: "";
-  position: absolute;
-  right: 5px;
-  bottom: 4px;
-  left: 5px;
-  height: 6px;
-  border: 1.6px solid var(--muted);
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
+.primary-button.block {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.secondary-button {
+  border-color: var(--control);
+  background: transparent;
+  color: var(--ink);
+}
+
+.secondary-button:hover {
+  background: var(--paper-2);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.text-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--green-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.text-button:hover {
+  background: var(--green-100);
 }
 
 .danger-button {
   color: var(--danger);
 }
 
-.hidden {
-  display: none;
+.danger-button:hover {
+  background: var(--danger-soft);
+}
+
+/* Moves right-aligned text buttons outwards so their text lines up with the edge of the content */
+.page-head .text-button,
+.card-actions .text-button {
+  margin-right: -12px;
+}
+
+input,
+.field textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--control);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.field textarea {
+  min-height: 92px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
+
+input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* A label with its input underneath */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span {
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form-error {
+  margin-top: 16px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 15px;
+}
+
+.note {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
+/* ========== 4. Home tab ========== */
+
+/* Hero: text on the left, example card on the right */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: center;
+  gap: 64px;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 48px var(--gutter) 96px;
+}
+
+.hero-copy {
+  min-width: 0;
+}
+
+.greeting {
+  margin-bottom: 18px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.hero-title {
+  /* clamp(smallest, preferred, largest): the text grows with the screen width but stays between the two limits */
+  font: 500 clamp(2rem, 9.5vw, 3.6rem) / 1.05 var(--display);
+  letter-spacing: -0.02em;
+}
+
+.hero-title .line {
+  display: block; /* each sentence on its own line */
+}
+
+.hero-title em {
+  color: var(--green);
+  font-style: italic;
+}
+
+.hero-sub {
+  max-width: 31em;
+  margin-top: 22px;
+  color: var(--ink-2);
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* The form: a box with the text area and the button */
+.composer {
+  margin-top: 32px;
+  border: 1px solid var(--control-soft);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.composer:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+  padding: 18px 20px 6px;
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.composer textarea:focus {
+  outline: none; /* the whole box already shows the focus */
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 12px;
+}
+
+/* The boxes under the form (waiting, missing details, confirm) */
+.card {
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  scroll-margin: 88px 0 80px; /* when the page scrolls to a box, keep it clear of the top bar and the bottom bar */
+}
+
+.card-title {
+  font: 500 24px/1.2 var(--display);
+}
+
+.card-title + .note {
+  margin-top: 4px;
+}
+
+.processing-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.processing-card .card-title {
+  font-size: 20px;
+}
+
+/* Five bars that grow and shrink one after the other (height and delay are set in index.html) */
+.processing-waves {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+
+.processing-waves span {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--green);
+  animation: wave 1s ease-in-out infinite;
 }
 
 @keyframes wave {
-  0%,
-  100% {
-    transform: scaleY(0.65);
-    opacity: 0.6;
+  0%, 100% {
+    transform: scaleY(0.6);
+    opacity: 0.55;
   }
   50% {
-    transform: scaleY(1.1);
+    transform: scaleY(1);
     opacity: 1;
   }
 }
 
-@media (min-width: 720px) {
-  .phone-frame {
-    width: 320px;
-    min-height: 820px;
+.missing-fields {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.confirm-list {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.confirm-list > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr); /* label | value */
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.confirm-list dt {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.confirm-list dd {
+  overflow-wrap: anywhere;
+}
+
+.confirm-list .sub {
+  display: block; /* the phone number goes under the name */
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Example texts under the form */
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 20px;
+}
+
+/* Hide the examples while one of the boxes above them is open ("~" means: a later sibling) */
+.card:not([hidden]) ~ .examples {
+  display: none;
+}
+
+.examples-label {
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.examples ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.example {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--control-soft);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.example:hover {
+  border-color: var(--control);
+  background: var(--card);
+}
+
+/* The example card on the right */
+.preview {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.preview-label,
+.bubble-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.preview-label {
+  color: var(--ink-3);
+}
+
+.preview-when {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.bubble {
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.bubble-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.bubble-in {
+  background: var(--paper-2);
+}
+
+.bubble-in .bubble-label {
+  color: var(--ink-3);
+}
+
+.bubble-out {
+  background: var(--forest);
+  color: var(--paper);
+  font: 400 18px/1.5 var(--display);
+}
+
+.bubble-out .bubble-label {
+  color: var(--band-muted);
+  font-family: var(--sans);
+}
+
+.preview-arrow {
+  display: block;
+  margin: 8px auto;
+  color: var(--ink-3);
+}
+
+/* The dark band: how it works */
+.steps-band {
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.steps-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 72px var(--gutter) 48px;
+}
+
+.steps-title {
+  font: 500 clamp(1.9rem, 3.4vw, 2.6rem) / 1.1 var(--display);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* three equal columns */
+  gap: 32px;
+  margin-top: 40px;
+}
+
+.steps li {
+  padding-top: 24px;
+  border-top: 1px solid rgba(245, 242, 233, 0.2);
+}
+
+.step-num {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--mint);
+  border-radius: 50%;
+  color: var(--mint);
+  font-weight: 600;
+}
+
+.steps h3 {
+  margin-top: 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.steps p {
+  max-width: 28em;
+  margin-top: 8px;
+  color: var(--band-muted);
+  line-height: 1.6;
+}
+
+.footnote {
+  margin-top: 56px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(245, 242, 233, 0.12);
+  color: var(--band-muted);
+  font-size: 14px;
+}
+
+
+/* ========== 5. Scheduled and Contacts tabs ========== */
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px var(--gutter) 96px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-title {
+  font: 500 clamp(2.1rem, 5vw, 3rem) / 1.08 var(--display);
+}
+
+.page-sub {
+  margin-top: 6px;
+  color: var(--ink-2);
+}
+
+.page-head .text-button {
+  margin-top: 8px;
+}
+
+.call-group {
+  margin-top: 40px;
+}
+
+.call-group + .call-group {
+  margin-top: 36px;
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.group-head h3 {
+  font: 500 24px/1.2 var(--display);
+}
+
+.count {
+  color: var(--ink-3);
+  font-size: 15px;
+}
+
+.call-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* A list without calls shows a dashed box with a short text */
+.call-list.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 20px;
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* One call: date on the left, details on the right */
+.call-item {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.date-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 64px;
+  border-radius: 12px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+
+/* app.js adds "is-upcoming" to calls that are still to come */
+.call-item.is-upcoming .date-block {
+  background: var(--green-100);
+  color: var(--green-text);
+}
+
+.date-month {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.date-day {
+  color: var(--ink);
+  font: 500 26px/1 var(--display);
+}
+
+.call-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contact-name {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.meta-line {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.message-line {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.card-actions:empty {
+  display: none; /* calls without a Cancel button get no extra space */
+}
+
+/* The status of a call: a small coloured label */
+.status-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge::before {
+  content: ""; /* the small dot before the text */
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-badge.pending {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.status-badge.calling {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.status-badge.connected {
+  background: var(--green-100);
+  color: var(--green-text);
+}
+
+.status-badge.failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Contacts tab */
+.page .card {
+  margin-top: 32px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.page .card .note {
+  margin-top: 8px;
+}
+
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.health-pill::before {
+  content: ""; /* the dot before the text, grey until app.js adds the class below */
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--control);
+}
+
+.health-pill-live::before {
+  background: var(--green);
+}
+
+
+/* The server's last answer (inside a <details> on the Contacts tab) */
+.reply-box {
+  margin-top: 22px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.reply-box summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.reply-box pre {
+  max-height: 240px;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  font: 12.5px/1.5 Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reply-box pre:empty::before {
+  content: "No requests yet.";
+  color: var(--ink-3);
+}
+
+
+/* ========== 6. Small screens ========== */
+
+/* Laptops and desktops: the headline can be a bit larger */
+@media (min-width: 981px) {
+  .hero-title {
+    font-size: clamp(2.6rem, 5.6vw, 4rem);
+  }
+}
+
+/* Tablets: the example card goes under the text */
+@media (max-width: 980px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+    padding-bottom: 72px;
   }
 
-  #schedule-form {
-    min-height: 820px;
+  .preview {
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 760px) {
+  .steps {
+    grid-template-columns: minmax(0, 1fr); /* the three steps under each other */
+    gap: 28px;
+  }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+  :root {
+    --gutter: 20px;
   }
 
-  .view-panel {
-    min-height: 748px;
-    padding: 30px 16px 90px;
+  .site-header-inner {
+    grid-template-columns: 1fr auto; /* logo | corner icon (the tabs are fixed to the bottom) */
+    height: 60px;
+    padding: 0 10px 0 var(--gutter);
   }
 
-  .hero-card {
-    margin-top: 90px;
+  /* The tabs move to a bar fixed to the bottom of the screen */
+  .primary-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    padding: 6px 8px;
+    border-top: 1px solid var(--line);
+    background: var(--card);
   }
 
-  .greeting-line,
-  .greeting-name {
-    font-size: 3.1rem;
+  .nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    height: 52px;
+    padding: 0;
+    border-radius: 12px;
+    font-size: 12px;
   }
 
-  .hero-subtitle {
-    font-size: 1rem;
+  .nav-item .icon {
+    width: 22px;
+    height: 22px;
   }
 
-  .composer-card {
-    margin-top: 64px;
+  .nav-item.active {
+    background: transparent;
+    color: var(--green-text);
+  }
+
+  .hero {
+    padding-top: 24px;
+    padding-bottom: 56px;
+  }
+
+  .hero-sub {
+    font-size: 17px;
+  }
+
+  .composer {
+    margin-top: 28px;
+  }
+
+  .composer textarea {
+    padding: 16px 16px 4px;
+    font-size: 17px;
+  }
+
+  .steps-inner {
+    padding-bottom: 104px; /* room for the bottom bar */
+  }
+
+  .page {
+    padding: 32px var(--gutter) 112px;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Very narrow phones */
+@media (max-width: 380px) {
+  :root {
+    --gutter: 16px;
+  }
+
+  .confirm-list > div {
+    grid-template-columns: 1fr; /* label above value */
+    gap: 0;
+  }
+
+  .call-item {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+}
+
+/* People who asked their device for less motion get still bars */
+@media (prefers-reduced-motion: reduce) {
+  .processing-waves span {
+    animation: none;
   }
 }

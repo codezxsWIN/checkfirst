@@ -295,28 +295,33 @@ private fun CalendarDay(
             contentDescription = "${date.format(DayTitle)} ${date.year}${if (isToday) ", today" else ""}, " +
                 "${calls.size} calls${if (calls.isEmpty()) "" else ": " + calls.joinToString { it.call.contactName }}"
         },
-        color = if (isSelected) AppAccentSoft else Color.Transparent,
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(1.dp, if (isSelected || isToday) AppAccent else AppLine),
+        color = if (isSelected) AppAccent else if (calls.isNotEmpty()) AppPanelAlt else Color.Transparent,
+        shape = RoundedCornerShape(14.dp),
+        border = if (isToday && !isSelected) BorderStroke(1.5.dp, AppAccent) else null,
     ) {
         Column(
             Modifier.heightIn(min = minHeight).padding(horizontal = 2.dp, vertical = 6.dp).clearAndSetSemantics {},
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(date.dayOfMonth.toString(), color = AppText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Text(
+                date.dayOfMonth.toString(),
+                color = if (isSelected) AppOnAccent else if (isToday) AppAccent else AppText,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp,
+            )
             calls.take(2).forEach { entry ->
                 val cancelled = entry.call.status.equals("cancelled", ignoreCase = true)
                 val failed = entry.call.status.equals("failed", ignoreCase = true)
                 Surface(
-                    color = if (failed) AppDangerSoft else if (cancelled) AppPanelAlt else AppAccentSoft,
-                    shape = RoundedCornerShape(4.dp),
+                    color = if (isSelected) AppOnAccent.copy(alpha = 0.22f) else if (failed) AppDangerSoft else if (cancelled) AppLine else AppAccentSoft,
+                    shape = RoundedCornerShape(6.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         entry.call.contactName,
-                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
-                        color = AppText,
+                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 2.dp),
+                        color = if (isSelected) AppOnAccent else AppText,
                         fontSize = 10.sp,
                         lineHeight = 12.sp,
                         maxLines = 1,
@@ -324,8 +329,8 @@ private fun CalendarDay(
                     )
                 }
             }
-            if (calls.size > 2) Text("+${calls.size - 2}", color = AppText, fontSize = 10.sp, lineHeight = 12.sp)
-            if (isToday && calls.isEmpty()) Box(Modifier.size(4.dp).background(AppAccent, CircleShape))
+            if (calls.size > 2) Text("+${calls.size - 2}", color = if (isSelected) AppOnAccent else AppText, fontSize = 10.sp, lineHeight = 12.sp)
+            if (isToday && calls.isEmpty() && !isSelected) Box(Modifier.size(4.dp).background(AppAccent, CircleShape))
         }
     }
 }
